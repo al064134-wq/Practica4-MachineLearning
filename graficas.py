@@ -9,6 +9,22 @@ AZUL, VERDE, ROJO = "#0072BD", "#2CA02C", "#D62728"
 plt.rcParams.update({"font.size": 9, "axes.titlesize": 10})
 
 
+def _ajustar(fig):
+    """tight_layout puede fallar con algunas versiones de matplotlib; no es crítico."""
+    try:
+        _ajustar(fig)
+    except Exception:
+        try:
+            fig.subplots_adjust(left=.1, right=.97, top=.9, bottom=.14, wspace=.35, hspace=.45)
+        except Exception:
+            pass
+
+
+def _limpio(v):
+    v = np.nan_to_num(np.asarray(v, dtype=float), nan=1e-6, posinf=1e6, neginf=1e-6)
+    return np.maximum(v, 1e-6)
+
+
 def _mejor(val):
     val = np.asarray(val)
     return int(np.argmin(val)), float(np.min(val))
@@ -20,22 +36,22 @@ def plotperform(curvas, ylabel="Error"):
     nombres = {"train": ("Train", AZUL), "val": ("Validation", VERDE), "test": ("Test", ROJO)}
     for k, (nom, col) in nombres.items():
         if k in curvas and len(curvas[k]):
-            ax.plot(np.arange(len(curvas[k])), np.maximum(curvas[k], 1e-6), color=col, lw=1.6, label=nom)
+            ax.plot(np.arange(len(curvas[k])), _limpio(curvas[k]), color=col, lw=1.6, label=nom)
     ref = curvas.get("val") or curvas["train"]
-    e, v = _mejor(ref)
+    e, v = _mejor(_limpio(ref))
     ax.axvline(e, color=VERDE, ls=":", lw=1.2)
     ax.plot(e, max(v, 1e-6), "o", ms=9, mfc="none", mec=VERDE, label="Best")
     ax.set_yscale("log"); ax.grid(alpha=.35, which="both")
     ax.set_xlabel(f"{len(ref)} Epochs"); ax.set_ylabel(ylabel)
     ax.set_title(f"Best Validation Performance is {v:.4g} at epoch {e}")
     ax.legend(loc="upper right")
-    fig.tight_layout()
+    _ajustar(fig)
     return fig
 
 
 def plottrainstate(curvas):
     """Gradiente (|Δ pérdida|) y validation checks (épocas sin mejorar) por época."""
-    tr = np.asarray(curvas["train"]); val = np.asarray(curvas.get("val") or tr)
+    tr = _limpio(curvas["train"]); val = _limpio(curvas.get("val") or tr)
     grad = np.abs(np.diff(tr, prepend=tr[0] * 1.05)) + 1e-12
     checks, mejor, c = [], np.inf, 0
     for x in val:
@@ -47,7 +63,7 @@ def plottrainstate(curvas):
     ax[1].plot(checks, color=AZUL, marker=".", ms=4); ax[1].grid(alpha=.35)
     ax[1].set_ylabel("val fail"); ax[1].set_xlabel(f"{len(tr)} Epochs")
     ax[1].set_title(f"Validation Checks = {checks[-1]}, at epoch {len(tr) - 1}")
-    fig.tight_layout()
+    _ajustar(fig)
     return fig
 
 
@@ -60,7 +76,7 @@ def ploterrhist(err_tr, err_te, bins=20, xlabel="Errors = Targets - Outputs"):
     ax.axvline(0, color="orange", lw=2, label="Zero Error")
     ax.set_title(f"Error Histogram with {bins} Bins"); ax.set_xlabel(xlabel); ax.set_ylabel("Instances")
     ax.legend(); ax.grid(alpha=.3, axis="y")
-    fig.tight_layout()
+    _ajustar(fig)
     return fig
 
 
@@ -96,7 +112,7 @@ def plotconfusion(pares, etiquetas):
     fig, ax = plt.subplots(1, len(pares), figsize=(4.2 * len(pares), 4.4))
     for a, (t, y, p) in zip(np.atleast_1d(ax), pares):
         _confusion(a, confusion_matrix(y, p, labels=range(len(etiquetas))), etiquetas, t)
-    fig.tight_layout()
+    _ajustar(fig)
     return fig
 
 
@@ -113,7 +129,7 @@ def plotroc(pares, etiquetas):
         a.plot([0, 1], [0, 1], color="gray", ls="--", lw=.8)
         a.set_xlabel("False Positive Rate"); a.set_ylabel("True Positive Rate"); a.set_title(t)
         a.legend(fontsize=6.5, loc="lower right"); a.grid(alpha=.3)
-    fig.tight_layout()
+    _ajustar(fig)
     return fig
 
 
@@ -130,7 +146,7 @@ def plotregression(pares):
         a.set_title(f"{t}: R={r:.5f}"); a.set_xlabel("Target")
         a.set_ylabel(f"Output ~= {m:.2f}*Target + {b:.2f}"); a.legend(fontsize=7, loc="upper left")
         a.grid(alpha=.3); a.set_aspect("equal", adjustable="datalim")
-    fig.tight_layout()
+    _ajustar(fig)
     return fig
 
 
@@ -146,7 +162,7 @@ def plotresponse(y_real, y_pred, etiquetas, paso_s=1.28):
     ax[0].set_title("Response of Output Element 1 for Time-Series"); ax[0].legend(fontsize=7, ncol=3); ax[0].grid(alpha=.3)
     ax[1].bar(t, (y_real != y_pred).astype(int), width=paso_s, color=ROJO)
     ax[1].set_ylabel("Error"); ax[1].set_xlabel("Tiempo (s)"); ax[1].set_yticks([0, 1])
-    fig.tight_layout()
+    _ajustar(fig)
     return fig
 
 
@@ -164,5 +180,5 @@ def ploterrcorr(err, max_lag=20):
     ax.plot([-max_lag - 1, max_lag + 1], [lim, lim], "r--", lw=.8); ax.plot([-max_lag - 1, max_lag + 1], [-lim, -lim], "r--", lw=.8)
     ax.set_xlim(-max_lag - 1, max_lag + 1); ax.set_xlabel("Lag"); ax.set_ylabel("Correlation")
     ax.set_title("Autocorrelation of Error 1"); ax.legend(fontsize=7); ax.grid(alpha=.3)
-    fig.tight_layout()
+    _ajustar(fig)
     return fig

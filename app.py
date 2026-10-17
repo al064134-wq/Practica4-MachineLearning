@@ -74,10 +74,14 @@ def arquitectura(tipo, texto):
                 unsafe_allow_html=True)
 
 
-def grafica(titulo, fig):
+def grafica(titulo, crear, *args, **kw):
     st.markdown(f"**{titulo}**")
-    st.pyplot(fig)
-    plt.close(fig)
+    try:
+        fig = crear(*args, **kw)
+        st.pyplot(fig)
+        plt.close(fig)
+    except Exception as e:                      # una gráfica fallida no tumba la página
+        st.warning(f"No se pudo dibujar esta gráfica: {e}")
 
 
 # ----------------------------------------------------------------------------- navegación
@@ -123,19 +127,15 @@ if pagina.startswith("1"):
 
     st.subheader("📈 Análisis de Entrenamiento (Estilo MATLAB)")
     yp_tr, yp_te = r["p_tr"].argmax(1), r["p_te"].argmax(1)
-    grafica("1. Neural Network Training Performance (plotperform)",
-            G.plotperform(r["curvas"], "Cross-Entropy (log-loss)"))
-    grafica("2. Neural Network Training State (plottrainstate)", G.plottrainstate(r["curvas"]))
-    grafica("3. Error Histogram (ploterrhist)",
-            G.ploterrhist(r["y_tr"] - r["p_tr"][:, 1], r["y_te"] - r["p_te"][:, 1]))
-    grafica("4. Confusion Matrix (plotconfusion)",
-            G.plotconfusion([("Training Confusion Matrix", r["y_tr"], yp_tr),
+    grafica("1. Neural Network Training Performance (plotperform)", G.plotperform, r["curvas"], "Cross-Entropy (log-loss)")
+    grafica("2. Neural Network Training State (plottrainstate)", G.plottrainstate, r["curvas"])
+    grafica("3. Error Histogram (ploterrhist)", G.ploterrhist, r["y_tr"] - r["p_tr"][:, 1], r["y_te"] - r["p_te"][:, 1])
+    grafica("4. Confusion Matrix (plotconfusion)", G.plotconfusion, [("Training Confusion Matrix", r["y_tr"], yp_tr),
                              ("Test Confusion Matrix", r["y_te"], yp_te),
                              ("All Confusion Matrix", np.r_[r["y_tr"], r["y_te"]], np.r_[yp_tr, yp_te])],
-                            M.CLASES_BILLETES))
-    grafica("5. Receiver Operating Characteristic (plotroc)",
-            G.plotroc([("Training ROC", r["y_tr"], r["p_tr"]), ("Test ROC", r["y_te"], r["p_te"])],
-                      M.CLASES_BILLETES))
+                            M.CLASES_BILLETES)
+    grafica("5. Receiver Operating Characteristic (plotroc)", G.plotroc, [("Training ROC", r["y_tr"], r["p_tr"]), ("Test ROC", r["y_te"], r["p_te"])],
+                      M.CLASES_BILLETES)
 
 # ============================================================================= 2. REGRESIÓN
 elif pagina.startswith("2"):
@@ -163,14 +163,11 @@ elif pagina.startswith("2"):
         st.success(f"🏠 Valor medio estimado: **{pred:.2f} mil USD** (≈ {pred * 1000:,.0f} USD)")
 
     st.subheader("📈 Análisis de Entrenamiento (Estilo MATLAB)")
-    grafica("1. Neural Network Training Performance (plotperform)",
-            G.plotperform(r["curvas"], "Mean Squared Error (mse)"))
-    grafica("2. Neural Network Training State (plottrainstate)", G.plottrainstate(r["curvas"]))
-    grafica("3. Error Histogram (ploterrhist)",
-            G.ploterrhist(r["y_tr"] - r["p_tr"], r["y_te"] - r["p_te"]))
-    grafica("4. Neural Network Training Regression (plotregression)",
-            G.plotregression([("Training", r["y_tr"], r["p_tr"]), ("Test", r["y_te"], r["p_te"]),
-                              ("All", np.r_[r["y_tr"], r["y_te"]], np.r_[r["p_tr"], r["p_te"]])]))
+    grafica("1. Neural Network Training Performance (plotperform)", G.plotperform, r["curvas"], "Mean Squared Error (mse)")
+    grafica("2. Neural Network Training State (plottrainstate)", G.plottrainstate, r["curvas"])
+    grafica("3. Error Histogram (ploterrhist)", G.ploterrhist, r["y_tr"] - r["p_tr"], r["y_te"] - r["p_te"])
+    grafica("4. Neural Network Training Regression (plotregression)", G.plotregression, [("Training", r["y_tr"], r["p_tr"]), ("Test", r["y_te"], r["p_te"]),
+                              ("All", np.r_[r["y_tr"], r["y_te"]], np.r_[r["p_tr"], r["p_te"]])])
 
 # ============================================================================= 3. SERIES DE TIEMPO
 else:
@@ -210,17 +207,14 @@ else:
 
     st.subheader("📈 Análisis de Series de Tiempo (Estilo MATLAB)")
     yp_tr, yp_te = r["p_tr"].argmax(1), r["p_te"].argmax(1)
-    grafica("1. Neural Network Training Performance (plotperform)",
-            G.plotperform(r["curvas"], "Pérdida (train: log-loss · val: 1 − exactitud)"))
-    grafica("2. Neural Network Training State (plottrainstate)", G.plottrainstate(r["curvas"]))
+    grafica("1. Neural Network Training Performance (plotperform)", G.plotperform, r["curvas"], "Pérdida (train: log-loss · val: 1 − exactitud)")
+    grafica("2. Neural Network Training State (plottrainstate)", G.plottrainstate, r["curvas"])
     err_tr = 1 - r["p_tr"][np.arange(len(r["y_tr"])), r["y_tr"]]
     err_te = 1 - r["p_te"][np.arange(len(r["y_te"])), r["y_te"]]
-    grafica("3. Error Histogram (ploterrhist)",
-            G.ploterrhist(err_tr, err_te, xlabel="Error = 1 − probabilidad de la clase real"))
-    grafica("4. Confusion Matrix (plotconfusion)",
-            G.plotconfusion([("Training Confusion Matrix", r["y_tr"], yp_tr),
-                             ("Test Confusion Matrix", r["y_te"], yp_te)], M.ACT))
-    grafica("5. Receiver Operating Characteristic (plotroc)", G.plotroc([("Test ROC", r["y_te"], r["p_te"])], M.ACT))
+    grafica("3. Error Histogram (ploterrhist)", G.ploterrhist, err_tr, err_te, xlabel="Error = 1 − probabilidad de la clase real")
+    grafica("4. Confusion Matrix (plotconfusion)", G.plotconfusion, [("Training Confusion Matrix", r["y_tr"], yp_tr),
+                             ("Test Confusion Matrix", r["y_te"], yp_te)], M.ACT)
+    grafica("5. Receiver Operating Characteristic (plotroc)", G.plotroc, [("Test ROC", r["y_te"], r["p_te"])], M.ACT)
     n = min(300, len(r["y_te"]))
-    grafica("6. Time-Series Response (plotresponse)", G.plotresponse(r["y_te"][:n], yp_te[:n], M.ACT))
-    grafica("7. Error Autocorrelation (ploterrcorr)", G.ploterrcorr((r["y_te"] != yp_te).astype(float)))
+    grafica("6. Time-Series Response (plotresponse)", G.plotresponse, r["y_te"][:n], yp_te[:n], M.ACT)
+    grafica("7. Error Autocorrelation (ploterrcorr)", G.ploterrcorr, (r["y_te"] != yp_te).astype(float))
